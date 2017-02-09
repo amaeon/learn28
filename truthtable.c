@@ -1,8 +1,16 @@
 #include <stdio.h>
 #include <ctype.h>
 
-void makeTableTXT();
-int infixToPostfix(char *from, char *dest);
+#define MAXLINE 1000
+#define MAXVARS 26
+struct
+{
+	char infix[MAXLINE];
+	char postfix[MAXLINE];
+	char vars[MAXVARS];
+	short order[MAXVARS];
+}
+typedef Expression;
 
 // vars for stack
 #define MAXSTACK 200
@@ -15,11 +23,11 @@ void printStk();
 int emptyStk();
 int topOp();
 
-#define MAXLINE 1000
+void initExpression(Expression *expr);
 int fgetline(char *dest, int lim);
 
-
 // all for operations
+#define EMPTY ' '
 #define NEG '~'
 #define AND '*'
 #define OR '+'
@@ -29,17 +37,25 @@ int fgetline(char *dest, int lim);
 int priority(char c);
 
 
+int infixToPostfix(Expression *expr);
+void makeTableTXT();
+char eval();
+
 int main(int argc, char const *argv[])
 {
-	char infix[MAXLINE];
-	char postfix[MAXLINE];
+	Expression e;
+	initExpression(&e);
+	infixToPostfix(&e);
 
-	fgetline(infix,MAXLINE);
-	infixToPostfix(infix,postfix);
-	printf("%s\n",postfix);
+	printf("%s\n",e.postfix);
 
 
 	return 0;
+}
+
+void initExpression(Expression *expr)
+{
+	fgetline(expr->infix,MAXLINE);
 }
 
 int fgetline(char *dest, int lim)
@@ -69,15 +85,18 @@ void makeTableTXT(char *pfx)
 	fclose(f);
 }
 
-int infixToPostfix(char *from, char *dest)
+int infixToPostfix(Expression *expr)
 {
-	char *tp = from;
-	char *mp = dest;
+	char *tp = expr->infix;
+	char *mp = expr->postfix;
 	char op1;
-	char op2 = NEG; // HACK: NEG has the highest priority, so it will not be pushed in the beginning
+	char op2 = EMPTY; // HACK: EMPTY has the highest priority, so it will not be pushed in the beginning
+
+	// Implementation of the Shunting-yard algotithm
 	while((op1=*tp)!='\0'){
+		//printf("\nINSTRING %c",*tp);
 		if(isalpha(op1)){
-			*mp=op1;
+			*mp=toupper(op1);
 			mp++;
 		}
 		else switch(op1){
@@ -135,12 +154,16 @@ int infixToPostfix(char *from, char *dest)
 				break;
 			}
 			case ')':{
-				while( topOp() && (op2=pop())!='(' ){
+				while( !emptyStk() && (op2=pop())!='(' ){
 					*mp = op2;
 					mp++;
 				}
-				if(emptyStk() && op2!='(')
+				if(emptyStk() && op2!='('){
 					fprintf(stderr,"Incorrect sequence: some brackets missing!\n");
+					return -1;
+				}
+				if(op2=='(');
+					op2=EMPTY; // Reset of op2, otherwise it will be pushed back
 				break;
 			}
 			default:{
@@ -156,6 +179,7 @@ int infixToPostfix(char *from, char *dest)
 		}
 		else{
 			fprintf(stderr,"Incorrect sequence: brackets not closed!\n");
+			return -1;
 			break;
 		}
 	}
@@ -165,23 +189,28 @@ int infixToPostfix(char *from, char *dest)
 
 char pop()
 {
+	//printf("\nPOP %c",*(sp-1));
 	if(sp!=stk){
 		sp--;
+		//printStk(); // -
 		return *(sp);
 	}
 	else{
 		fprintf(stderr, "Stack is empty! Can't pop!\n" );
+		//printStk(); // -
 		return 0;
 	}
 }
 
 void push(char c){
+	//printf("\nPUSH %c",c);
 	if(sp-stk+1<MAXSTACK){
 		*sp=c;
 		sp++;
 	}
 	else
 		fprintf(stderr, "Stack is full! Can't push!\n" );
+	//printStk();
 }
 
 void printStk()
@@ -192,7 +221,6 @@ void printStk()
 		tp--;
 		printf("%c",*tp); 
 	}
-	printf("\n");
 }
 
 int emptyStk()
@@ -203,6 +231,7 @@ int emptyStk()
 int priority(char c)
 {
 	switch(c){
+		case EMPTY:{return 999; break;}
 		case NEG:{return 5; break;}
 		case AND:{return 4; break;}
 		case OR:{return 3; break;}
@@ -218,7 +247,7 @@ int topOp()
 {
 	if(emptyStk())
 		return 0;
-	if(*sp=='(')
+	if(*(sp-1)=='(')
 		return 0;
 	else
 		return 1;
