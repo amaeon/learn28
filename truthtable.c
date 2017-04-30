@@ -72,9 +72,9 @@ int main(int argc, char const *argv[])
 {
 	Expression e;
 	initExpression(&e);
-	setOrder(&e,ORDER_RAND);
+	//setOrder(&e,ORDER_RAND);
 	makeTableTXT(e);
-	
+
 	return 0;
 }
 
@@ -314,8 +314,10 @@ void makeTableTXT(Expression expr)
 	fprintf(f, "\n");
 
 	int nlines = ipow(2,expr.nvars);
+	int ntrue = 0;
 	char set[MAXVARS];
 	int t;
+	char val;
 	for(int i=0; i<nlines; i++){
 		t=i;
 		for(int j=expr.nvars-1; j>=0; j--){
@@ -324,8 +326,11 @@ void makeTableTXT(Expression expr)
 		}
 		for(int j=0; j<expr.nvars; j++)
 			fprintf(f,"%c",set[j]+'0');
-		fprintf(f," %c\n",eval(expr,set)+'0');
+		if((val=eval(expr,set))!=0) ntrue++;
+		fprintf(f," %c\n",val+'0');
 	}
+
+	fprintf(f, "\nTRUE: %d\nFALSE: %d\n", ntrue, nlines-ntrue);
 
 	fclose(f);
 }
